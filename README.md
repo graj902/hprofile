@@ -1,6 +1,6 @@
 # Prerequisites
 
-### Before you begin, ensure you have met the following requirements:
+##Before you begin, ensure you have met the following requirements:
 
 - JDK 11
 - Maven 3
