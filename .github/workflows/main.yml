@@ -1,26 +1,37 @@
-name: vprofile action
-on: workflow_dispatch
+name: vprofile-action
+# This workflow is triggered on workflow_dispatch events.
+on:
+    workflow_dispatch:
 
 jobs:
     build:
+        # This job runs on an ubuntu-latest environment.
         runs-on: ubuntu-latest
         steps:
+            # Checkout the repository code.
             - name: Code checkout
               uses: actions/checkout@v3
+
+            # Run the maven test command to execute unit tests.
             - name: Maven test
               run: mvn test
+
+            # Run the checkstyle command to ensure code quality.
             - name: Checkstyle
               run: mvn checkstyle:checkstyle
+
+            # Run the sonarcloud scan to analyze code quality.
             - name: SonarCloud Scan
               run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+            # Run the quality gate check command.
             - name: Quality Gate Check
-              id: sonarqube-quality-gate-check
               uses: sonarsource/sonarqube-quality-gate-action@master
-              timeout-minutes: 5
-        env:
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-            SONAR_HOST_URL: https://sonarcloud.io
+              with:
+                  scanMetadataReportFile: target/sonar/report-task.txt
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                  SONAR_HOST_URL: https://sonarcloud.io
