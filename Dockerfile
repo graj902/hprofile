@@ -1,4 +1,4 @@
-FROM FROM eclipse-temurin:11-jdk AS build
+FROM  eclipse-temurin:11-jdk AS build
 RUN apt update && apt install maven -y
 COPY ./ vprofile-project
 RUN cd vprofile-project &&  mvn install 
