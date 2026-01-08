@@ -1,5 +1,7 @@
 name: vprofile action
-on: workflow_dispatch
+on: push
+env:
+  AWS_REGION: us-east-1
 
 jobs:
   build:
@@ -21,14 +23,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-# The following block is commented out to prevent the pipeline from breaking
-# This allows us to move to the AWS deployment stages in Video 108
-#      - name: Quality Gate Check
-#        id: sonarqube-quality-gate-check
-#        uses: sonarsource/sonarqube-quality-gate-action@master
-#        with:
-#          scanMetadataReportFile: target/sonar/report-task.txt
-#        timeout-minutes: 5
-#        env:
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#          SONAR_HOST_URL: https://sonarcloud.io
+
+  build_and_publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v3
+
+      - name: Update application.properties
+        run: |
+          sed -i "s/^jdbc.username=.*/jdbc.username=${{ secrets.RDS_USER }}/" src/main/resources/application.properties
+          sed -i "s/^jdbc.password=.*/jdbc.password=${{ secrets.RDS_PASS }}/" src/main/resources/application.properties
+          sed -i "s/db01/${{ secrets.RDS_ENDPOINT }}/" src/main/resources/application.properties
+
+      - name: Build & Upload to ECR
+        uses: appleboy/docker-ecr-action@master
+        with:
+          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          registry: ${{ secrets.REGISTRY }}
+          repo: vprofileapp
+          region: ${{ env.AWS_REGION }}
+          tags: latest, ${{ github.run_number }}
+          daemon_off: false
+          dockerfile: ./Dockerfile
+          context: ./
