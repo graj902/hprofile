@@ -3,7 +3,7 @@ on: push
 
 env:
   AWS_REGION: us-east-1
-  ECS_CLUSTER: vprofile-cluster
+  ECS_CLUSTER: vprofile-cluster1
   ECS_SERVICE: vpro-svc
   ECS_TASK_DEFINITION: aws-files/taskdeffile.json
   CONTAINER_NAME: vprofile-app
