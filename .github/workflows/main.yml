@@ -1,14 +1,21 @@
 name: vprofile action
 on: push
+
 env:
   AWS_REGION: us-east-1
+  ECS_CLUSTER: vprofile-cluster
+  ECS_SERVICE: vpro-svc
+  ECS_TASK_DEFINITION: task-definition.json
+  CONTAINER_NAME: vprofile-app
+  ECR_REPOSITORY: vprofileapp # Added this to match your ECR step
 
 jobs:
   build:
+    name: Test and Analyze
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Updated to v4
         with:
           fetch-depth: 0
 
@@ -25,11 +32,12 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   build_and_publish:
+    name: Build and Push to ECR
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Update application.properties
         run: |
@@ -43,9 +51,42 @@ jobs:
           access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           registry: ${{ secrets.REGISTRY }}
-          repo: vprofileapp
+          repo: ${{ env.ECR_REPOSITORY }}
           region: ${{ env.AWS_REGION }}
           tags: latest, ${{ github.run_number }}
           daemon_off: false
           dockerfile: ./Dockerfile
           context: ./
+
+  deploy:
+    name: Deploy to Amazon ECS
+    runs-on: ubuntu-latest
+    needs: build_and_publish # FIXED: Matches the underscore naming above
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          # FIXED: Using secrets.REGISTRY and env.ECR_REPOSITORY for consistency
+          image: ${{ secrets.REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.run_number }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
