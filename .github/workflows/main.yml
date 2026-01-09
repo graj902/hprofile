@@ -5,7 +5,7 @@ env:
   AWS_REGION: us-east-1
   ECS_CLUSTER: vprofile-cluster
   ECS_SERVICE: vpro-svc
-  ECS_TASK_DEFINITION: task-definition.json
+  ECS_TASK_DEFINITION: aws-files/taskdeffile.json
   CONTAINER_NAME: vprofile-app
   ECR_REPOSITORY: vprofileapp # Added this to match your ECR step
 
